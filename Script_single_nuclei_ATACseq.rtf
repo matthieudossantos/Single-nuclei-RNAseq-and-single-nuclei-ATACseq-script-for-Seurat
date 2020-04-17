@@ -1,0 +1,360 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1671\cocoasubrtf600
+{\fonttbl\f0\fmodern\fcharset0 Courier;\f1\froman\fcharset0 Times-Roman;\f2\froman\fcharset0 Times-Bold;
+}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue233;\red0\green0\blue0;\red0\green0\blue233;
+}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c93333;\cssrgb\c0\c0\c0;\cssrgb\c0\c0\c93333;
+}
+\paperw11900\paperh16840\margl1440\margr1440\vieww33100\viewh17600\viewkind0
+\deftab720
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt 
+\f0\fs24 \cf2 \expnd0\expndtw0\kerning0
+\ul \ulc2 library}}
+\f0\fs24 \cf3 \expnd0\expndtw0\kerning0
+(Signac)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf2 \ul \ulc2 library}}(Seurat)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf2 \ul \ulc2 library}}(GenomeInfoDb)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf2 \ul \ulc2 library}}(EnsDb.Mmusculus.v79)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf2 \ul \ulc2 library}}(ggplot2)\
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/Random.html"}}{\fldrslt \cf2 \ul \ulc2 set.seed}}(1234)\cf3 \outl0\strokewidth0 \strokec3 \
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 library}}(JASPAR2018)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 library}}(TFBSTools)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 library}}(BSgenome.Mmusculus.UCSC.mm10)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 library}}(patchwork)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/Random.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 set.seed}}(1234)\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3 \outl0\strokewidth0 \
+\
+counts <- Read10X_h5("/Users/matthieu/Desktop/ATAC2/filtered_peak_bc_matrix.h5")\
+\
+metadata <- read.csv(\
++     file = "/Users/matthieu/Desktop/ATAC2/singlecell.csv",\
++     header = TRUE,\
++     row.names = 1\
++ )\
+\
+\
+MAT <- CreateSeuratObject(\
++     counts = counts,\
++     assay = 'peaks',\
++     project = 'ATAC',\
++     min.cells = 1,\
++     meta.data = metadata\
++ )\
+\
+fragment.path <- '/Users/matthieu/Desktop/ATAC2/fragments.tsv.gz'\
+\
+\
+MAT <- SetFragments(\
++     object = MAT,\
++     file = fragment.path\
++ )\
+\
+\
+#ATAC_steph\
+counts2 <- Read10X_h5("/Users/matthieu/Desktop/ATAC2/ATAC3_steph/filtered_peak_bc_matrix.h5")\
+\
+\
+metadata2 <- read.csv(\
++     file = "/Users/matthieu/Desktop/ATAC2/ATAC3_steph/singlecell.csv",\
++     header = TRUE,\
++     row.names = 1\
++ )\
+\
+\
+Steph <- CreateSeuratObject(\
+    counts = counts2,\
+    assay = 'peaks',\
+    project = 'ATAC',\
+    min.cells = 1,\
+    meta.data = metadata2\
+)\
+\
+\
+fragment.path2 <- '/Users/matthieu/Desktop/ATAC2/ATAC3_steph/fragments.tsv.gz'\
+\
+\
+Steph <- SetFragments(\
+    object = Steph,\
+    file = fragment.path2\
+)\
+\
+\
+ MAT <- NucleosomeSignal(object = MAT)\
+Steph <- NucleosomeSignal(object = Steph)\
+\
+\
+MAT$pct_reads_in_peaks <- MAT$peak_region_fragments / MAT$passed_filters * 100\
+\
+MAT$blacklist_ratio <- MAT$blacklist_region_fragments / MAT$peak_region_fragments\
+\
+VlnPlot(\
++     object = MAT,\
++     features = c('pct_reads_in_peaks', 'blacklist_ratio', 'nucleosome_signal', 'peak_region_fragments'),\
++     pt.size = 0.1,\
++     ncol = 4) + NoLegend()\
+\
+\
+Steph$pct_reads_in_peaks <- Steph$peak_region_fragments / Steph$passed_filters * 100\
+\
+\
+Steph$blacklist_ratio <- Steph$blacklist_region_fragments / Steph$peak_region_fragments\
+\
+VlnPlot(\
++     object = Steph,\
++     features = c('pct_reads_in_peaks', 'blacklist_ratio', 'nucleosome_signal', 'peak_region_fragments'),\
++     pt.size = 0.1,\
++     ncol = 4) + NoLegend()\
+\
+\
+MAT$nucleosome_group <- ifelse(MAT$nucleosome_signal > 10, 'NS > 10', 'NS < 10')\
+\
+FragmentHistogram(object = MAT, group.by = 'nucleosome_group', region = 'chr1-1-10000000')\
+\
+\
+gene.ranges <- genes(EnsDb.Mmusculus.v79)\
+\
+gene.ranges <- gene.ranges[gene.ranges$gene_biotype == 'protein_coding', ]\
+\
+\
+tss.ranges <- GRanges(\
+  seqnames = {\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/GenomeInfoDb/man/seqinfo.html"}}{\fldrslt \cf2 \ul \ulc2 seqnames}}(gene.ranges),\
+  ranges = IRanges(start = {\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/stats/start.html"}}{\fldrslt \cf2 \ul \ulc2 start}}(gene.ranges), width = 2),\
+  strand = strand(gene.ranges)\
+)\
+\
+\
+\
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/GenomeInfoDb/man/seqlevelsStyle.html"}}{\fldrslt \cf2 \ul \ulc2 seqlevelsStyle}}(tss.ranges) <- 'UCSC'\
+\
+tss.ranges <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/GenomeInfoDb/man/seqlevels-wrappers.html"}}{\fldrslt \cf2 \ul \ulc2 keepStandardChromosomes}}(tss.ranges, pruning.mode = 'coarse')\
+\
+MAT <- TSSEnrichment(object = MAT, tss.positions = tss.ranges[1:2000])\
+\
+Steph <- TSSEnrichment(object = Steph, tss.positions = tss.ranges[1:2000])\
+\
+MAT$high.tss <- ifelse(MAT$TSS.enrichment > 2, 'High', 'Low')\
+\
+TSSPlot(MAT, group.by = 'high.tss') + ggtitle("TSS enrichment score") + NoLegend()\
+\
+Steph$high.tss <- ifelse(Steph$TSS.enrichment > 2, 'High', 'Low')\
+\
+TSSPlot(Steph, group.by = 'high.tss') + ggtitle("TSS enrichment score") + NoLegend()\
+\
+MAT <- subset(MAT, subset = peak_region_fragments > 3000 & peak_region_fragments < 100000 & pct_reads_in_peaks > 15 & blacklist_ratio < 0.025 & nucleosome_signal < 10 & TSS.enrichment > 2)\
+\
+\
+Steph <- subset(Steph, subset = peak_region_fragments > 3000 & peak_region_fragments < 100000 & pct_reads_in_peaks > 15 & blacklist_ratio < 0.025 & nucleosome_signal < 10 & TSS.enrichment > 2)\
+\
+\
+\
+\
+\
+\
+\
+#merge of the 2 dataset\
+\
+\
+combined.peaks <- {\field{\*\fldinst{HYPERLINK "https://satijalab.org/signac/reference/UnifyPeaks.html"}}{\fldrslt \cf2 \ul \ulc2 UnifyPeaks}}(object.list = {\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/list.html"}}{\fldrslt \cf2 \ul \ulc2 list}}(MAT, Steph), mode = "reduce")\
+\
+combined.peaks\
+\
+MAT.counts <- FeatureMatrix(fragments = GetFragments(MAT), features = combined.peaks, sep = c(":", "-"), cells = colnames(MAT))\
+\
+Steph.counts <- FeatureMatrix(fragments = GetFragments(Steph), features = combined.peaks, sep = c(":", "-"), cells = colnames(Steph))\
+\
+MAT[['peaks']] <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/CreateAssayObject.html"}}{\fldrslt \cf2 \ul \ulc2 CreateAssayObject}}(counts = MAT.counts)\
+\
+Steph[['peaks']] <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/CreateAssayObject.html"}}{\fldrslt \cf2 \ul \ulc2 CreateAssayObject}}(counts = Steph.counts)\
+\
+MAT$dataset <- 'MAT'\
+\
+Steph$dataset <- 'Steph'\
+\
+combined <- merge(x = MAT, y = list(Steph), add.cell.ids = c("M", "S"))\
+\
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/DefaultAssay.html"}}{\fldrslt \cf2 \ul \ulc2 DefaultAssay}}(combined) <- "peaks" \
+\
+combined <- {\field{\*\fldinst{HYPERLINK "https://satijalab.org/signac/reference/RunTFIDF.html"}}{\fldrslt \cf2 \ul \ulc2 RunTFIDF}}(combined)\
+\
+combined <- {\field{\*\fldinst{HYPERLINK "https://satijalab.org/signac/reference/FindTopFeatures.html"}}{\fldrslt \cf2 \ul \ulc2 FindTopFeatures}}(combined, min.cutoff = 20)\
+\
+combined <- {\field{\*\fldinst{HYPERLINK "https://satijalab.org/signac/reference/RunSVD.html"}}{\fldrslt \cf2 \ul \ulc2 RunSVD}}(\
+  combined,\
+  reduction.key = 'LSI_',\
+  reduction.name = 'lsi', \
+  irlba.work = 400\
+)\
+\
+combined <- RunSVD(combined, reduction.key = 'LSI_', reduction.name = 'lsi', irlba.work = 400)\
+\
+combined <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/RunUMAP.html"}}{\fldrslt \cf2 \ul \ulc2 RunUMAP}}(combined, dims = 2:30, reduction = 'lsi')\
+\
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/DimPlot.html"}}{\fldrslt \cf2 \ul \ulc2 DimPlot}}(combined, group.by = 'dataset', pt.size = 0.1)\
+\
+saveRDS(combined, file = "/Users/matthieu/Desktop/ATAC2/merged/combined.rds")\
+\
+combined <- FindNeighbors(object = combined, reduction = 'lsi', dims = 2:30)\
+\
+combined <- FindClusters(object = combined, algorithm = 3, resolution = 1.2, verbose = FALSE)\
+\
+DimPlot(object = combined, label = TRUE) + NoLegend()\
+\
+\
+# gene activity matrix creation\
+\
+\
+combined <- SetFragments(combined, "/Users/matthieu/Desktop/ATAC2/fragment_merged/fragments.tsv.gz")\
+\
+fragment.path <- '/Users/matthieu/Desktop/ATAC2/fragment_merged/fragments.tsv.gz'\
+\
+gene.coords <- genes(EnsDb.Mmusculus.v79, filter = ~ gene_biotype == "protein_coding")\
+\
+seqlevelsStyle(gene.coords) <- 'UCSC'\
+\
+genebody.coords <- keepStandardChromosomes(gene.coords, pruning.mode = 'coarse')\
+\
+genebodyandpromoter.coords <- Extend(x = gene.coords, upstream = 2000, downstream = 0)\
+\
+gene.activities <- FeatureMatrix(fragments = fragment.path, features = genebodyandpromoter.coords, cells = colnames(combined), chunk = 10)\
+\
+gene.key <- genebodyandpromoter.coords$gene_name\
+\
+names(gene.key) <- GRangesToString(grange = genebodyandpromoter.coords)\
+\
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/colnames.html"}}{\fldrslt \cf2 \ul \ulc2 rownames}}(gene.activities) <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/make.unique.html"}}{\fldrslt \cf2 \ul \ulc2 make.unique}}(gene.key[{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/colnames.html"}}{\fldrslt \cf2 \ul \ulc2 rownames}}(gene.activities)])\
+\
+gene.activities <- gene.activities[{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/colnames.html"}}{\fldrslt \cf2 \ul \ulc2 rownames}}(gene.activities)!="",]\
+\
+combined[['RNA']] <- CreateAssayObject(counts = gene.activities)\
+\
+combined <- NormalizeData(object = combined, assay = 'RNA', normalization.method = 'LogNormalize', scale.factor = median(combined$nCount_RNA))\
+\
+\
+\
+#Merged RNAseq and ATACseq\
+\
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf2 \ul \ulc2 library}}(Signac)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf2 \ul \ulc2 library}}(Seurat)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf2 \ul \ulc2 library}}(JASPAR2018)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf2 \ul \ulc2 library}}(TFBSTools)\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/library.html"}}{\fldrslt \cf2 \ul \ulc2 library}}(BSgenome.Mmusculus.UCSC.mm10)\
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/Random.html"}}{\fldrslt \cf2 \ul \ulc2 set.seed}}(1234)\
+\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3 \outl0\strokewidth0 \strokec3 \
+Muscle_rna <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/readRDS.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 readRDS}}("/home/mergeData.integrated.rds")\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3 \outl0\strokewidth0 Muscle_rna\cf3 \outl0\strokewidth0 \strokec3  <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/FindVariableFeatures.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 FindVariableFeatures}}(\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3   object = \cf3 \outl0\strokewidth0 Muscle_rna\cf3 \outl0\strokewidth0 \strokec3 ,\
+  nfeatures = 5000\
+)\
+\
+transfer.anchors <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/FindTransferAnchors.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 FindTransferAnchors}}(\
+  reference = \cf3 \outl0\strokewidth0 Muscle_rna\cf3 \outl0\strokewidth0 \strokec3 ,\
+  query = \cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3 ,\
+  reduction = 'cca',\
+  dims = 1:40\
+)\
+\
+predicted.labels <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/TransferData.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 TransferData}}(\
+  anchorset = transfer.anchors,\
+  refdata = \cf3 \outl0\strokewidth0 Muscle_rna\cf3 \outl0\strokewidth0 \strokec3 $orig.idents,\
+  weight.reduction = \cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3 [['lsi']],\
+  dims = 2:30\
+)\
+\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3  <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/AddMetaData.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 AddMetaData}}(object = \cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3 , metadata = predicted.labels)\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3 \outl0\strokewidth0 \
+\
+\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3 #Chromatin accessibility of Myh genes\
+\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3 \
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3 \outl0\strokewidth0 \strokec3 \
+\pard\pardeftab720\sl280\partightenfactor0
+
+\f1 \cf3 \
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/DefaultAssay.html"}}{\fldrslt 
+\f0 \cf4 \ul \ulc4 \strokec4 DefaultAssay}}
+\f0 (\cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3 ) <- 'RNA'\
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/FeaturePlot.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 FeaturePlot}}(\
+  object = \cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3 ,\
+  features = {\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/c.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 c}}(\'91Myh7\'92,\'92\cf3 \outl0\strokewidth0 Myh2\cf3 \outl0\strokewidth0 \strokec3 \'92,\'a0"\cf3 \outl0\strokewidth0 Myh1\cf3 \outl0\strokewidth0 \strokec3 ",\'a0"\cf3 \outl0\strokewidth0 Myh4\cf3 \outl0\strokewidth0 \strokec3 "),\
+  pt.size = 0.1,\
+  max.cutoff = 'q95',\
+  ncol = 3\
+)\
+\
+\
+\pard\pardeftab720\sl440\sa298\partightenfactor0
+
+\f2\b\fs36 \cf3 #Computing motif activities\
+\pard\pardeftab720\sl280\partightenfactor0
+
+\f0\b0\fs24 \cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3  <- {\field{\*\fldinst{HYPERLINK "https://satijalab.org/signac/reference/RunChromVAR.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 RunChromVAR}}(\
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3   object = \cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3 ,\
+  genome = BSgenome.Mmusculus.UCSC.mm10\
+)\
+\pard\pardeftab720\sl440\sa298\partightenfactor0
+
+\f2\b\fs36 \cf3 \
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/DefaultAssay.html"}}{\fldrslt 
+\f0\b0\fs24 \cf4 \ul \ulc4 \strokec4 DefaultAssay}}
+\f0\b0\fs24 (\cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3 ) <- 'chromvar'\
+\pard\pardeftab720\sl440\sa298\partightenfactor0
+
+\f2\b\fs36 \cf3 \
+\pard\pardeftab720\sl280\partightenfactor0
+
+\f0\b0\fs24 \cf3 differential.activity <- {\field{\*\fldinst{HYPERLINK "https://rdrr.io/pkg/Seurat/man/FindMarkers.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 FindMarkers}}(\
+  object = \cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3 ,\
+  ident.1 = 'Myh7 Cells',\
+  ident.2 = ident.2 = c("Myh1+2 Cells -1", \
+		"Myh4 Cells -1",\
+		"Myh1+2 Cells -2",\
+		"Myh4 Cells -2",\
+		"Myh4 Cells -3")\
+,\
+  only.pos = TRUE,\
+  test.use = 'LR',\
+  latent.vars = 'nCount_peaks'\
+)\
+\pard\pardeftab720\sl440\sa298\partightenfactor0
+
+\f2\b\fs36 \cf3 \
+\pard\pardeftab720\sl280\partightenfactor0
+{\field{\*\fldinst{HYPERLINK "https://satijalab.org/signac/reference/MotifPlot.html"}}{\fldrslt 
+\f0\b0\fs24 \cf4 \ul \ulc4 \strokec4 MotifPlot}}
+\f0\b0\fs24 (\
+  object = \cf3 \outl0\strokewidth0 combined\cf3 \outl0\strokewidth0 \strokec3 ,\
+  motifs = {\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/utils/head.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 head}}({\field{\*\fldinst{HYPERLINK "https://rdrr.io/r/base/colnames.html"}}{\fldrslt \cf4 \ul \ulc4 \strokec4 rownames}}(differential.activity)),\
+  assay = 'peaks'\
+)\
+\pard\pardeftab720\sl440\sa298\partightenfactor0
+
+\f2\b\fs36 \cf3 \
+\
+\pard\pardeftab720\sl280\partightenfactor0
+
+\f0\b0\fs24 \cf3 \
+\pard\pardeftab720\sl280\partightenfactor0
+\cf3 \outl0\strokewidth0 \
+}

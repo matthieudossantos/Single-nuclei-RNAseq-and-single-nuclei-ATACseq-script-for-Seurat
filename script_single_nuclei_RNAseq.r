@@ -3,6 +3,7 @@ library(Seurat)
 library(ggplot2)
 library(cowplot)
 
+# Merging the 4 datasets of single nuclei RNAseq
 
 sol.data <- Read10X(data.dir = "./Raw_features/sol/")
 sol <- CreateSeuratObject(counts = sol.data, project = "Sol")
@@ -26,7 +27,6 @@ mergeData <- subset(merge.data, subset = nFeature_RNA > 200 & nFeature_RNA < 250
 table(mergeData$orig.ident)
 
 
-
 mergeData.list <- SplitObject(object = mergeData, split.by = "orig.ident")
 
 for (i in 1:length(x = mergeData.list)) {
@@ -42,22 +42,26 @@ DefaultAssay(mergeData.integrated) <- "integrated"
 
 
 # Run the standard workflow for visualization and clustering
+
 mergeData.integrated <- ScaleData(object = mergeData.integrated, verbose = FALSE)
 mergeData.integrated <- RunPCA(object = mergeData.integrated, npcs = 30, verbose = FALSE)
 mergeData.integrated <- RunUMAP(object = mergeData.integrated, reduction = "pca", dims = 1:30)
 
-# Figures 
+mergeData.integrated <- readRDS("./mergeDataIntegrated.rds")
+
+name <- "BI19-010_scRNA_MergedData_Sol-Quad-Tib-Fastmix"
 
 mergeData.integrated <- FindNeighbors(mergeData.integrated, dims = 1:20)
 mergeData.integrated <- FindClusters(mergeData.integrated, resolution = 0.5)
 
-# Figures
 
-# UMAP: légendes par samples ou cluster
+
+# UMAP plot of the different cluster 
+
 	DimPlot(object = mergeData.integrated, reduction = "umap", group.by = "orig.ident", label = FALSE)
 	DimPlot(mergeData.integrated, reduction = "umap", label = TRUE)
 
-# clusters Names
+# Names of the clusters (fig1b and sup 2b and 2c)
 
 	new.cluster.ids <- c("Myh1+2 Cells -1", 
 		"Myh4 Cells -1",
@@ -66,7 +70,7 @@ mergeData.integrated <- FindClusters(mergeData.integrated, resolution = 0.5)
 		"FAPS-1",
 		"Myh4 Cells -3",
 		"FAPS-2", 
-		"Unknow myonuclei",
+		"Newly fused myonuclei",
 		"FAPS-3",
 		"Myh7 Cells",
 		"MuSC",
@@ -81,7 +85,8 @@ mergeData.integrated <- FindClusters(mergeData.integrated, resolution = 0.5)
 	names(new.cluster.ids) <- levels(mergeData.integrated)
 	mergeData.integrated <- RenameIdents(mergeData.integrated, new.cluster.ids)
 
-# UMAP with cluster names
+# UMAP plot of the different cluster with name legends (fig1b and sup 2b and 2c)
+
 png(filename=paste(name,"UMAP.png",sep="_"),width=10 ,height=10, units="in",res = 600 ) 
 	DimPlot(mergeData.integrated, reduction = "umap", label = FALSE)
 dev.off()
@@ -94,21 +99,20 @@ png(filename=paste(name,"UMAP_byOrig.png",sep="_"),width=10 ,height=10, units="i
 	DimPlot(mergeData.integrated, reduction = "umap", label = FALSE, group.by = "orig.ident")
 dev.off()
    
-# QC
-	VlnPlot(mergeData.integrated, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, nrow = 4, split.by = "orig.ident")
 
 
 ###########################
 # Differential expression###########
 ###########################
 
-	DefaultAssay(mergeData.integrated) <- "RNA"
+DefaultAssay(mergeData.integrated) <- "RNA"
 
-# Nouvelle colonne cluster_sample
+# New colonne cluster_sample
+
 	mergeData.integrated$cluster.sample <- paste(mergeData.integrated$orig.ident, mergeData.integrated$seurat_clusters, sep = "_")
 
 
-# Marqueurs spécifiques de chaque cluster face au reste des noyaux, et commun aux différentes conditions
+# Specific markers of each clusters
 
 	Idents(mergeData.integrated) <- "seurat_clusters"
 
@@ -120,20 +124,21 @@ dev.off()
 		write.table(conservedMarkers,file=nameFile,sep="\t")
 	}
 png(filename=paste(name,"FeaturePlot.png",sep=""),width=10 ,height=7, units="in",res = 600 ) 
-	FeaturePlot(mergeData.integrated, features = c("Myh1","Myh2","Myh4","Myh7","Ttn","Pdgfra","Pax7","Pparg","Pecam1","Ptprc","Myh11","Col11a1","Col24a1","Colq"))
+
+
+
+
+# Feature plot of differents markers (sup 2a)
+
+FeaturePlot(mergeData.integrated, features = c("Myh1","Myh2","Myh4","Myh7","Ttn","Pdgfra","Pax7","Pparg","Pecam1","Ptprc","Myh11","Col11a1","Col24a1","Colq"))
 dev.off()
 
-# Travail Marqueurs Myh[X] vs Cluster
 
-NMJ.markers <- FindMarkers(mergeData.integrated, ident.1 = "NMJ Myonuclei", ident.2 = c("Myh1+2 Cells -1","Myh4 Cells -1","Myh1+2 Cells -2","Myh4 Cells -2","Myh4 Cells -3","Myh7 Cells"), min.pct = 0.25)
-Newly_fused.markers <- FindMarkers(mergeData.integrated, ident.1 = "Newly fused myonuclei", ident.2 = c("Myh1+2 Cells -1","Myh4 Cells -1","Myh1+2 Cells -2","Myh4 Cells -2","Myh4 Cells -3","Myh7 Cells"), min.pct = 0.25)
 
-write.table(MTJ.markers,file=paste(name,"liste_clusterMTJ_vs_allMYH.tsv",sep="_"),sep="\t")
-write.table(NMJ.markers,file=paste(name,"liste_clusterNMJ_vs_allMYH.tsv",sep="_"),sep="\t")
-write.table(Unknow myonuclei,file=paste(name,"liste_clusterUnknow_myonuclei_vs_allMYH.tsv",sep="_"),sep="\t")
 
-########################################################################
-
+###########################
+# Differential expression of MTJ myonuclei  (fig 2b)###########
+###########################
 
 	data.currentClusters <- mergeData.integrated
 
@@ -144,7 +149,7 @@ write.table(Unknow myonuclei,file=paste(name,"liste_clusterUnknow_myonuclei_vs_a
 		"FAPS-1",
 		"Myonuclei",
 		"FAPS-2", 
-		"Unknow myonuclei",
+		"Newly fused myonuclei",
 		"FAPS-3",
 		"Myonuclei",
 		"MuSC",
@@ -170,12 +175,16 @@ top30 <- head(MTJ.markers, n=30)
 top30.2 <- head(MTJ.markers2, n=30)
 png(filename=paste(name,"_Heatmap_MTJ-vs-Myonuclei_30genes.png",sep="_"),width=7 ,height=14, units="in",res = 600 ) 
 DoHeatmap(data.currentClusters, features = c(rownames(top30),rownames(top30.2)))
-dev.off()
 
 
-##########################################"
-########################################################################
+DoHeatmap(subset(data.currentClusters, downsample = 100), features = c(rownames(top30),rownames(top30.2)))
 
+
+
+
+###########################
+# Differential expression of NMJ myonuclei  (fig 2b)###########
+###########################
 
 	data.currentClusters <- mergeData.integrated
 
@@ -214,9 +223,12 @@ png(filename=paste(name,"_Heatmap_NMJ-vs-Myonuclei_30genes.png",sep="_"),width=7
 DoHeatmap(data.currentClusters, features = c(rownames(top30),rownames(top30.2)))
 dev.off()
 
+DoHeatmap(subset(data.currentClusters, downsample = 100), features = c(rownames(top30),rownames(top30.2)))
 
-##########################################"
-########################################################################
+
+###########################
+# Differential expression of Unknow (newly fused) myonuclei  (fig 2b)###########
+###########################
 
 
 	data.currentClusters <- mergeData.integrated
@@ -228,7 +240,7 @@ dev.off()
 		"FAPS-1",
 		"Myonuclei",
 		"FAPS-2", 
-		"Unknow myonuclei myonuclei",
+		"Newly fused myonuclei",
 		"FAPS-3",
 		"Myonuclei",
 		"MuSC",
@@ -243,60 +255,47 @@ dev.off()
 	names(new.cluster.ids) <- levels(data.currentClusters)
 	data.currentClusters <- RenameIdents(data.currentClusters, new.cluster.ids)
 	
-	Unknow myonuclei <- FindMarkers(data.currentClusters, ident.1 = "Unknow myonuclei", ident.2 = "Myonuclei", min.pct = 0.25, only.pos = TRUE)
-	Unknow myonuclei2 <- FindMarkers(data.currentClusters, ident.2 = "Unknow myonuclei", ident.1 = "Myonuclei", min.pct = 0.25, only.pos = TRUE)
+	Newlyfused.markers <- FindMarkers(data.currentClusters, ident.1 = "Newly fused myonuclei", ident.2 = "Myonuclei", min.pct = 0.25, only.pos = TRUE)
+	Newlyfused.markers2 <- FindMarkers(data.currentClusters, ident.2 = "Newly fused myonuclei", ident.1 = "Myonuclei", min.pct = 0.25, only.pos = TRUE)
 
 	
-data.currentClusters <- subset(data.currentClusters, idents = c("Unknow myonuclei","Myonuclei"))
+data.currentClusters <- subset(data.currentClusters, idents = c("Newly fused myonuclei","Myonuclei"))
 data.currentClusters <- ScaleData(object = data.currentClusters, verbose = FALSE)
 	
-top30 <- head(Unknow myonuclei.markers, n=30)
-top30.2 <- head(Unknow myonuclei.markers2, n=30)
-png(filename=paste(name,"_Heatmap_Unknow myonuclei-vs-Myonuclei_30genes.png",sep="_"),width=7 ,height=14, units="in",res = 600 ) 
+top30 <- head(Newlyfused.markers, n=30)
+top30.2 <- head(Newlyfused.markers2, n=30)
+png(filename=paste(name,"_Heatmap_NewlyFused-vs-Myonuclei_30genes.png",sep="_"),width=7 ,height=14, units="in",res = 600 ) 
 DoHeatmap(data.currentClusters, features = c(rownames(top30),rownames(top30.2)))
 dev.off()
+
+
+DoHeatmap(subset(data.currentClusters, downsample = 100), features = c(rownames(top30),rownames(top30.2)))
 
 
 ##########################################"
 
 
-
-
-# Cells number for each clusters and samples
+# Number of cells per cluster and conditions (Sup 2d)
 
 	tableData.nCells <- table(mergeData.integrated@active.ident, mergeData.integrated@meta.data$orig.ident)
 	tableNOrig <- paste(name,"nCells_byCluster_bySample.txt",sep="_")
 	write.table(tableData.nCells,file=tableNOrig,sep="\t")
 
-# Travail sur les Myh[X]
+
+
+
+# Myh expression analysis
 	
-	# Figure expression globale des myh
+	# Global expression of Myh
 	myh.features <- c("Myh1","Myh2","Myh4","Myh7")
 	FeaturePlot(mergeData.integrated, features = myh.features)
 	RidgePlot(mergeData.integrated, features = myh.features, ncol = 2)
 	
-	# table expression Myh
+	# Table of Myh expression
 	myh.cells <- subset(mergeData.integrated, idents = c("Myh2 Cells","Myh7 Cells","Myh1 Cells","Myh4 Cells"))
 	table(myh.cells@active.ident, myh.cells@meta.data$orig.ident)
 	
-	# Figures comparaison d'expression des myh avec selection préalable des clusters
-	myh.cells <- subset(mergeData.integrated, idents = c("Myh2 Cells","Myh7 Cells"))
-png(filename=paste(name,"FeatureScatter_Myh7vsMyh2.png",sep="_"),width=7 ,height=7, units="in",res = 600 ) 
-	FeatureScatter(myh.cells, feature1 = "Myh7", feature2 = "Myh2", slot = "counts")
-dev.off()	
-	
-	myh.cells <- subset(mergeData.integrated, idents = c("Myh2 Cells","Myh1 Cells"))
-png(filename=paste(name,"FeatureScatter_Myh1vsMyh2.png",sep="_"),width=7 ,height=7, units="in",res = 600 ) 
-	FeatureScatter(myh.cells, feature1 = "Myh1", feature2 = "Myh2", slot = "counts")
-dev.off()	
-	
-	
-	myh.cells <- subset(mergeData.integrated, idents = c("Myh4 Cells -2","Myh1 Cells"))
-png(filename=paste(name,"FeatureScatter_Myh1vsMyh4.png",sep="_"),width=7 ,height=7, units="in",res = 600 ) 
-	FeatureScatter(myh.cells, feature1 = "Myh1", feature2 = "Myh4", slot = "counts")
-dev.off()	
-	
-	
+		
 	data.currentClusters <- mergeData.integrated
 
 	new.cluster.ids <- c("Myonuclei", 
@@ -323,7 +322,8 @@ dev.off()
 	data.currentClusters <- RenameIdents(data.currentClusters, new.cluster.ids)
 	
 	
-	
+# Coexpression of two Myh in myonuclei?	
+
 		myh.cells <- subset(data.currentClusters, idents = c("Myonuclei","Slow Myonuclei"))
 png(filename=paste(name,"FeatureScatter_Myh7vsMyh1.png",sep="_"),width=7 ,height=7, units="in",res = 600 ) 
 	FeatureScatter(myh.cells, feature1 = "Myh7", feature2 = "Myh1", slot = "counts")
@@ -356,60 +356,10 @@ png(filename=paste(name,"FeatureScatter_Myh1vsMyh4_new.png",sep="_"),width=7 ,he
 	FeatureScatter(myh.cells, feature1 = "Myh1", feature2 = "Myh4", slot = "counts")
 dev.off()	
 	
-
-
-
-
-
-
-
-
+	
 
 	
-	
-	
-	data.currentClusters <- mergeData.integrated
-
-	new.cluster.ids <- c("Myonuclei", 
-		"Myonuclei",
-		"Myonuclei",
-		"Myonuclei",
-		"FAPS-1",
-		"Myonuclei",
-		"FAPS-2", 
-		"Newly fused myonuclei",
-		"FAPS-3",
-		"Slow Myonuclei",
-		"MuSC",
-		"Tenocyte",
-		"Smooth muscular",
-		"Endothelial",
-		"B/T Cells",
-		"Adipocyte", 
-		"MTJ Myonuclei",
-		"Pericyte",
-		"NMJ Myonuclei")
-	names(new.cluster.ids) <- levels(data.currentClusters)
-	data.currentClusters <- RenameIdents(data.currentClusters, new.cluster.ids)
-	
-	
-	myh.cells <- subset(data.currentClusters, idents = c("Myonuclei", "Slow Myonuclei", "Newly fused myonuclei", "MTJ Myonuclei", "NMJ Myonuclei"))
-png(filename=paste(name,"FeatureScatter_Idh2vsAldoa.png",sep="_"),width=7 ,height=7, units="in",res = 600 ) 
-	FeatureScatter(myh.cells, feature1 = "Idh2", feature2 = "Aldoa", slot = "counts")
-dev.off()	
-	
-	
-	
-#~ 	myh.cells <- subset(mergeData.integrated, features = c("Myh1", "Myh2", "Myh4", "Myh7"))
-
-
-myh.cells <- subset(mergeData.integrated, idents = c("0","1","2","3","5","7","9","16","18"))
-DefaultAssay(myh.cells) <- "RNA"
-png(filename=paste(name,"_selectedCluster_DotPlot_Myh7-Myh2-Myh1-Myh4-Ttn.png",sep="_"),width=7 ,height=7, units="in",res = 600 ) 
-	DotPlot(myh.cells, features = c("Myh1","Myh2","Myh4","Myh7","Ttn"))
-dev.off()
-
-
+#Dotplot of Myh and Ttn gene expression in the different myonuclei (fig2c)
 
 
 	data.currentClusters <- mergeData.integrated
@@ -471,12 +421,10 @@ dev.off()
 
 
 
-myh.cells <- subset(data.currentClusters, idents = c("Myonuclei", "Slow Myonuclei", "MTJ Myonuclei", "NMJ Myonuclei"))
-DefaultAssay(myh.cells) <- "RNA"
-png(filename=paste(name,"selectedCluster_DotPlot_Myh7-Myh2-Myh1-Myh4-Ttn_no-NewMyonuclei.png",sep="_"),width=7 ,height=7, units="in",res = 600 ) 
-	DotPlot(myh.cells, features = c("Myh1","Myh2","Myh4","Myh7","Ttn"))
-dev.off()
 
+
+
+#Heatmap of genes differential expressed in the different type of Myh myonuclei (fig1d)
 
 #~ grep('^Myh1$', rownames(myh.cells), value = FALSE)
 #~ grep('^Myh2$', rownames(myh.cells), value = FALSE)
@@ -549,7 +497,7 @@ write.table(top100,file=paste(name,"liste_top100_clusterMYH.tsv",sep="_"),sep="\
 
 
 
-
+#Heatmap of the top 2 genes differential expressed in the different clusters (sup 1e)
 
 
 	data.currentClusters <- mergeData.integrated
@@ -591,6 +539,8 @@ write.table(top100,file=paste(name,"liste_top100_clusterMYH.tsv",sep="_"),sep="\
 
 
 
+
+# Coexpression of metabolic and Myh gene in myonuclei (fig5)	
 
 
 
@@ -653,3 +603,39 @@ png(filename=paste(name,"FeatureScatter_Myh7vsIdh2.png",sep="_"),width=7 ,height
 dev.off()	
 	
 
+
+
+
+sessionInfo(package = NULL)
+R version 3.6.1 (2019-07-05)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: macOS Mojave 10.14.6
+
+Matrix products: default
+BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libRlapack.dylib
+
+locale:
+[1] fr_FR.UTF-8/fr_FR.UTF-8/fr_FR.UTF-8/C/fr_FR.UTF-8/fr_FR.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] cowplot_1.0.0 ggplot2_3.3.2 Seurat_3.1.5  dplyr_1.0.0  
+
+loaded via a namespace (and not attached):
+ [1] httr_1.4.1         tidyr_1.1.0        jsonlite_1.6.1     viridisLite_0.3.0  splines_3.6.1      leiden_0.3.3      
+ [7] assertthat_0.2.1   ggrepel_0.8.2      globals_0.12.5     pillar_1.4.4       lattice_0.20-41    glue_1.4.1        
+[13] reticulate_1.16    digest_0.6.25      RColorBrewer_1.1-2 colorspace_1.4-1   htmltools_0.5.0    Matrix_1.2-18     
+[19] plyr_1.8.6         pkgconfig_2.0.3    tsne_0.1-3         listenv_0.8.0      purrr_0.3.4        patchwork_1.0.1   
+[25] scales_1.1.1       RANN_2.6.1         Rtsne_0.15         tibble_3.0.1       generics_0.0.2     ellipsis_0.3.1    
+[31] withr_2.2.0        ROCR_1.0-11        pbapply_1.4-2      lazyeval_0.2.2     cli_2.0.2          survival_3.2-3    
+[37] magrittr_1.5       crayon_1.3.4       future_1.17.0      fansi_0.4.1        nlme_3.1-148       MASS_7.3-51.6     
+[43] ica_1.0-2          tools_3.6.1        fitdistrplus_1.1-1 data.table_1.12.8  lifecycle_0.2.0    stringr_1.4.0     
+[49] plotly_4.9.2.1     munsell_0.5.0      cluster_2.1.0      irlba_2.3.3        compiler_3.6.1     rsvd_1.0.3        
+[55] rlang_0.4.6        grid_3.6.1         ggridges_0.5.2     rstudioapi_0.11    RcppAnnoy_0.0.16   rappdirs_0.3.1    
+[61] htmlwidgets_1.5.1  igraph_1.2.5       gtable_0.3.0       codetools_0.2-16   reshape2_1.4.4     R6_2.4.1          
+[67] gridExtra_2.3      zoo_1.8-8          future.apply_1.5.0 uwot_0.1.8         KernSmooth_2.23-17 ape_5.4           
+[73] stringi_1.4.6      parallel_3.6.1     Rcpp_1.0.4.6       vctrs_0.3.1        sctransform_0.2.1  png_0.1-7         
+[79] tidyselect_1.1.0   lmtest_0.9-37     
